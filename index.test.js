@@ -25,7 +25,7 @@ const uuid = require('uuid');
 
 const { TextEncoder, TextDecoder } = require('util');
 const { SigningAlgorithmSpec, KMS, KMSClient, SignCommand } = require("@aws-sdk/client-kms");
-const KSM_KEY_ID = 'arn:aws:kms:ap-southeast-1:813761449170:key/ca88bd14-ec38-4d4e-90e4-1211ba5b50a0';
+const KSM_KEY_ID = 'DUMMY';
 
 const PROP1 = "Prop1";
 const PROP2 = "Prop2";
@@ -64,8 +64,8 @@ describe("XMP Metadata", () => {
   const kms = new KMS({
     region: 'ap-southeast-1',
     credentials: {
-      accessKeyId: 'AKIA3257WJTJBZZDKP6Q',
-      secretAccessKey: 'uMuYkN22ou9q8ZKACoWqDW2kGvSBEw2vWBGB748/'
+      accessKeyId: 'DUMMY',
+      secretAccessKey: 'DUMMY/'
     }
   })
 
