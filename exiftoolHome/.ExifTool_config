@@ -1,0 +1,8 @@
+%Image::ExifTool::UserDefined = (
+    'Image::ExifTool::XMP::xmp' => {
+        Prop1 => { Name => 'Prop1',  Writable => 'string' },
+        Prop2 => { Name => 'Prop2',  Writable => 'string' },
+    },
+);
+
+1;

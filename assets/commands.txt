@@ -1,0 +1,2 @@
+// Ref: https://exiftool.org/forum/index.php?topic=10887.0
+exiftool -config "exiftool.config" -api Compact=Shorthand -xmp-xmp:Prop1="Dummy UUID" -xmp-xmp:Prop2="Dummy Sig"  "SAMPLE_IMAGE.png"
