@@ -168,7 +168,11 @@ describe("XMP Metadata", () => {
       expect(generateChecksum(await fs.readFile(input))).toEqual(generateChecksum(await fs.readFile(input)));
     })
 
-    it('The hash before and after xmp tagging is should be different', async () => {
+    /**
+     *   The checksum will be the same after exiftool.deleteAllTags for PNG and JPEG.
+     *   It will not be the same for pdf
+     */
+    fit('The hash before and after xmp tagging is should be different', async () => {
       const input = './assets/SAMPLE_PNG.png';
       const output = './assets/SAMPLE_PNG_HASHING_BEFORE_AFTER_OUT.png';
 
