@@ -721,52 +721,278 @@ describe("XMP Metadata", () => {
 
         expect(generateChecksum(await fs.readFile(input))).toEqual(generateChecksum(await fs.readFile(input)));
       })
+
+      it('The hash before and after xmp tagging should be different', async () => {
+        const input = './assets/SAMPLE_PDF.pdf';
+        const output = './assets/SAMPLE_PDF_HASHING_BEFORE_AFTER_OUT.pdf';
+
+        const expectedUuid = uuid.v4();
+        const expectedSig = 'dummySig';
+
+        await exiftool.write(input, {
+          [PROP1]: expectedUuid,
+          [PROP2]: expectedSig,
+        }, [...defaultAdditionalWriteArgs, "-o", output]);
+
+        // ensure the tags are written
+        const tags = await exiftool.read(output);
+        expect(tags[PROP1]).toEqual(expectedUuid);
+        expect(tags[PROP2]).toEqual(expectedSig);
+
+        const checksumOriginal = generateChecksum(await fs.readFile(input));
+        const checksumNew = generateChecksum(await fs.readFile(output));
+        expect(checksumNew).not.toEqual(checksumOriginal);
+      })
+
+      it('The hash should be different if tagged with different uuid', async () => {
+        const input = './assets/SAMPLE_PDF.pdf';
+        const output1 = './assets/SAMPLE_PDF_DIFFERENT_UUID_OUT_1.pdf'
+        const output2 = './assets/SAMPLE_PDF_DIFFERENT_UUID_OUT_2.pdf'
+
+        const expectedUuid1 = uuid.v4();
+        const expectedUuid2 = uuid.v4();
+
+        const expectedSig = 'dummySig';
+
+        await exiftool.write(input, {
+          [PROP1]: expectedUuid1,
+          [PROP2]: expectedSig,
+        }, [...defaultAdditionalWriteArgs, "-o", output1]);
+
+        await exiftool.write(input, {
+          [PROP1]: expectedUuid2,
+          [PROP2]: expectedSig,
+        }, [...defaultAdditionalWriteArgs, "-o", output2]);
+
+        // ensure the tags are written
+        const tags1 = await exiftool.read(output1);
+        expect(tags1[PROP1]).toEqual(expectedUuid1);
+        expect(tags1[PROP2]).toEqual(expectedSig);
+
+        const tags2 = await exiftool.read(output2);
+        expect(tags2[PROP1]).toEqual(expectedUuid2);
+        expect(tags2[PROP2]).toEqual(expectedSig);
+
+        // ensure the checksum are diff
+        const checksum1 = generateChecksum(await fs.readFile(output1));
+        const checksum2 = generateChecksum(await fs.readFile(output2));
+        expect(checksum1).not.toEqual(checksum2);
+      })
+
+      it('The hash should be different if tagged with different sig', async () => {
+        const input = './assets/SAMPLE_PDF.pdf';
+        const output1 = './assets/SAMPLE_PDF_DIFFERENT_SIG_OUT_1.pdf'
+        const output2 = './assets/SAMPLE_PDF_DIFFERENT_SIG_OUT_2.pdf'
+
+        const expectedUuid = uuid.v4();
+
+        const expectedSig1 = 'dummySig-1';
+        const expectedSig2 = 'dummySig-2';
+
+        await exiftool.write(input, {
+          [PROP1]: expectedUuid,
+          [PROP2]: expectedSig1,
+        }, [...defaultAdditionalWriteArgs, "-o", output1]);
+
+        await exiftool.write(input, {
+          [PROP1]: expectedUuid,
+          [PROP2]: expectedSig2,
+        }, [...defaultAdditionalWriteArgs, "-o", output2]);
+
+        // ensure the tags are written
+        const tags1 = await exiftool.read(output1);
+        expect(tags1[PROP1]).toEqual(expectedUuid);
+        expect(tags1[PROP2]).toEqual(expectedSig1);
+
+        const tags2 = await exiftool.read(output2);
+        expect(tags2[PROP1]).toEqual(expectedUuid);
+        expect(tags2[PROP2]).toEqual(expectedSig2);
+
+        // ensure the checksum are diff
+        const checksum1 = generateChecksum(await fs.readFile(output1));
+        const checksum2 = generateChecksum(await fs.readFile(output2));
+        expect(checksum1).not.toEqual(checksum2);
+      })
+
+      it('The hash should be the same if the same file is tagged with same uuid and sig and output twice', async () => {
+        const input = './assets/SAMPLE_PDF.pdf';
+        const output1 = './assets/SAMPLE_PDF_TAGGED_TWICE_OUT_1.pdf'
+        const output2 = './assets/SAMPLE_PDF_TAGGED_TWICE_OUT_2.pdf'
+
+        const expectedUuid = uuid.v4();
+        const expectedSig = 'dummySig';
+
+        await exiftool.write(input, {
+          [PROP1]: expectedUuid,
+          [PROP2]: expectedSig,
+        }, [...defaultAdditionalWriteArgs, "-o", output1]);
+
+        await exiftool.write(input, {
+          [PROP1]: expectedUuid,
+          [PROP2]: expectedSig,
+        }, [...defaultAdditionalWriteArgs, "-o", output2]);
+
+        // ensure the tags are written
+        const tags1 = await exiftool.read(output1);
+        expect(tags1[PROP1]).toEqual(expectedUuid);
+        expect(tags1[PROP2]).toEqual(expectedSig);
+
+        // ensure the tags are written
+        const tags2 = await exiftool.read(output2);
+        expect(tags2[PROP1]).toEqual(expectedUuid);
+        expect(tags2[PROP2]).toEqual(expectedSig);
+
+        // ensure the checksum are the same
+        const checksum1 = generateChecksum(await fs.readFile(output1));
+        const checksum2 = generateChecksum(await fs.readFile(output2));
+        expect(checksum1).toEqual(checksum2);
+      })
+
+      /**
+       * The difference in hashes is due to the /ID in document trailer
+       *
+       * More description of the ID in https://stackoverflow.com/questions/13193820/removing-pdfid-in-pdf
+       */
+      it('The hash for output1 and output3 should be the same if they have same uuid and sig (input -> output1 -> output2 (diff uuid / sig) -> output3)', async () => {
+        const input = './assets/SAMPLE_PDF.pdf';
+        const output1 = './assets/SAMPLE_PDF_RETAGGED_OUT_1.pdf';
+        const output2 = './assets/SAMPLE_PDF_RETAGGED_OUT_2.pdf';
+        const output3 = './assets/SAMPLE_PDF_RETAGGED_OUT_3.pdf';
+
+        const expectedUuid = uuid.v4();
+        const expectedSig = 'dummySig';
+
+        const expectedUuid2 = uuid.v4();
+        const expectedSig2 = 'ANOTHER_SIG';
+
+        await exiftool.write(input, {
+          [PROP1]: expectedUuid,
+          [PROP2]: expectedSig,
+        }, [...defaultAdditionalWriteArgs, "-o", output1]);
+
+        await exiftool.write(output1, {
+          [PROP1]: expectedUuid2,
+          [PROP2]: expectedSig2,
+        }, [...defaultAdditionalWriteArgs, "-o", output2]);
+
+        await exiftool.write(output2, {
+          [PROP1]: expectedUuid,
+          [PROP2]: expectedSig,
+        }, [...defaultAdditionalWriteArgs, "-o", output3]);
+
+        // ---------------------------------------------------------------------
+        // ensure the tags are written
+        // ---------------------------------------------------------------------
+        const tags1 = await exiftool.read(output1);
+        expect(tags1[PROP1]).toEqual(expectedUuid);
+        expect(tags1[PROP2]).toEqual(expectedSig);
+
+        const tags2 = await exiftool.read(output2);
+        expect(tags2[PROP1]).toEqual(expectedUuid2);
+        expect(tags2[PROP2]).toEqual(expectedSig2);
+
+
+        const tags3 = await exiftool.read(output3);
+        expect(tags3[PROP1]).toEqual(expectedUuid);
+        expect(tags3[PROP2]).toEqual(expectedSig);
+
+        // ---------------------------------------------------------------------
+        // Ensure checksum
+        // ---------------------------------------------------------------------
+        const checksum1 = generateChecksum(await fs.readFile(output1));
+        const checksum2 = generateChecksum(await fs.readFile(output2));
+        const checksum3 = generateChecksum(await fs.readFile(output3));
+        expect(checksum1).not.toEqual(checksum2);
+        expect(checksum2).not.toEqual(checksum3);
+        expect(checksum1).toEqual(checksum3);
+      })
+
+      /**
+       * The 2nd part of the /ID in trailer section is changed and affected the hash
+       * Hence, this test is not passing
+       */
+      it('The hash after deleting all tags should be the same', async () => {
+        const input = './assets/SAMPLE_PDF_DELETE_TAGS.pdf';
+        const output = './assets/SAMPLE_PDF_DELETE_TAGS_OUT.pdf';
+
+        const expectedUuid = uuid.v4();
+        const expectedSig = 'dummySig';
+
+        await exiftool.write(input, {
+          [PROP1]: expectedUuid,
+          [PROP2]: expectedSig,
+        }, [...defaultAdditionalWriteArgs, "-o", output]);
+
+        // ensure the tags are written
+        const tags = await exiftool.read(output);
+        expect(tags[PROP1]).toEqual(expectedUuid);
+        expect(tags[PROP2]).toEqual(expectedSig);
+
+        await exiftool.deleteAllTags(input);
+        await exiftool.deleteAllTags(output);
+
+        // ensure the written tags are removed
+        const tagsAfterDelete = await exiftool.read(output);
+        expect(tagsAfterDelete[PROP1]).toEqual(undefined);
+        expect(tagsAfterDelete[PROP2]).toEqual(undefined);
+
+        // ensure the checksum are the same
+        const checksumOriginal = generateChecksum(await fs.readFile(input));
+        const checksumNew = generateChecksum(await fs.readFile(output));
+        expect(checksumNew).toEqual(checksumOriginal);
+
+        // Clean up
+        await deleteFile(input);
+        await renameFile(`${input}_original`, input);
+      })
+
+      it('The hash after moving and renaming should be the same', async () => {
+        const input = './assets/SAMPLE_PDF_DELETE_TAGS.pdf';
+        const output1 = './assets/SAMPLE_PDF_RENAMED_OUT_1.pdf';
+        const output2 = './assets2/SAMPLE_PDF_RENAMED_OUT_2.pdf';
+
+        const expectedUuid = uuid.v4();
+        const expectedSig = 'dummySig';
+
+        await exiftool.write(input, {
+          [PROP1]: expectedUuid,
+          [PROP2]: expectedSig,
+        }, [...defaultAdditionalWriteArgs, "-o", output1]);
+
+        const checksum1 = generateChecksum(await fs.readFile(output1));
+
+        await renameFile(output1, output2);
+        const checksum2 = generateChecksum(await fs.readFile(output2));
+
+        expect(checksum1).toEqual(checksum2);
+      })
+
+      it('The hash after opening the file should be the same', async () => {
+        const input = './assets/SAMPLE_PDF.pdf';
+        const output = './assets/SAMPLE_PDF_OPENED_OUT_1.pdf';
+
+        const expectedUuid = uuid.v4();
+        const expectedSig = 'dummySig';
+
+        await exiftool.write(input, {
+          [PROP1]: expectedUuid,
+          [PROP2]: expectedSig,
+        }, [...defaultAdditionalWriteArgs, "-o", output]);
+
+        const accessDateSecondBefore = (await exiftool.read(output)).FileAccessDate.second;
+        const checksumBefore = generateChecksum(await fs.readFile(output));
+
+        // Wait for 3 seconds before opening
+        await sleep(3000);
+        const { stdout, stderr } = await exec(`open ${output}`);
+        await sleep(3000);
+
+        const accessDateSecondAfter = (await exiftool.read(output)).FileAccessDate.second;
+        const checksumAfter = generateChecksum(await fs.readFile(output));
+
+        expect(accessDateSecondBefore).not.toEqual(accessDateSecondAfter);
+        expect(checksumBefore).toEqual(checksumAfter);
+      })
     })
-
-    /**
-     *   The checksum will be the same after exiftool.deleteAllTags for PNG and JPEG.
-     *   It will not be the same for pdf
-     */
-    // it('The hash before and after xmp tagging is should be different', async () => {
-    //   const input = './assets/SAMPLE_PNG.jpeg';
-    //   const output = './assets/SAMPLE_PNG_HASHING_BEFORE_AFTER_OUT.jpeg';
-
-    //   const expectedUuid = uuid.v4();
-    //   const expectedSig = 'dummySig';
-
-    //   await exiftool.write(input, {
-    //     [PROP1]: expectedUuid,
-    //     [PROP2]: expectedSig,
-    //   }, [...defaultAdditionalWriteArgs, "-o", output]);
-
-    //   const checksumOriginal = generateChecksum(await fs.readFile(input));
-    //   const checksumNew = generateChecksum(await fs.readFile(output));
-    //   expect(checksumNew).not.toEqual(checksumOriginal);
-
-    //   const tags = await exiftool.read(output);
-    //   expect(tags[PROP1]).toEqual(expectedUuid);
-    //   expect(tags[PROP2]).toEqual(expectedSig);
-    // })
-
-    // it('Hash should be same for tagged documents with same Prop1 and Prop2', async () => {
-    //   const input = './assets/SAMPLE_PNG.png';
-    //   const output1 = './assets/SAMPLE_PNG_HASHING_AFTER_OUT_1.png';
-    //   const output2 = './assets/SAMPLE_PNG_HASHING_AFTER_OUT_2.png';
-
-    //   const expectedUuid = uuid.v4();
-    //   const expectedSig = 'dummySig';
-
-    //   await exiftool.write(input, {
-    //     [PROP1]: expectedUuid,
-    //     [PROP2]: expectedSig,
-    //   }, [...defaultAdditionalWriteArgs, "-o", output1]);
-
-    //   await exiftool.write(input, {
-    //     [PROP1]: expectedUuid,
-    //     [PROP2]: expectedSig,
-    //   }, [...defaultAdditionalWriteArgs, "-o", output2]);
-
-    //   expect(generateChecksum(await fs.readFile(output1))).toEqual(generateChecksum(await fs.readFile(output2)));
-    // })
   });
 })
